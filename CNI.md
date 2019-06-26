@@ -156,7 +156,7 @@ Main - interface creating, L2 connectivity on host.
 IPAM - ip address allocation
 - DHCP, host-local, static
 
-meta - other plugins,  bandwidth or qos guarantees
+Meta - other plugins,  bandwidth or qos guarantees
 - flannel, tuning, portmap, bandwidth
 
 ## 3rd Party plugins
@@ -197,3 +197,159 @@ create a container in kubernetes.
 - Calico CNI reports to kubelet that container is networked.
 
 - Kubelet reports pod IP address to API server.
+
+```
+apiVersion: v1
+kind: Node
+-
+status:
+  addresses: 
+    - type: InternalIP
+      addresses: 10.0.0.43
+spec:
+  podCIDR: 10.50.0.0/24 // block of ip address that node is going to use for assign pod's ip.
+```
+
+```
+apiversion: v1
+kind: Pod
+-
+status: 
+  hostIP: 10.0.0.43
+  podIP: 10.50.0.20
+```
+- podCIDR is not in host subnet.
+
+- Node has single network interface
+
+- Node is given pod cidr
+
+- Each pod has single network interface always called eth0, has single ip. 
+
+## Summary
+
+- CNI plugin is responsible for creation of interfaces inside network namespaces (eth0 - veth), IP address allocation from PodCIDR, adding routes to make Pod reachable by the whole cluster.
+
+- CNI Plugin provides
+
+    - Connectivity
+
+    - Reachability
+
+## Why do we need plugins
+
+- Because of diverse space and requirements.
+
+- Connectivity might depend on network interface hardware, Isolation technology (namespace or VM).
+
+- Reachability depends on networking hardware inside cloud, which is not accessible.
+
+- How do you talk to networking hardware, BGP, OSPF. 
+
+- Plugin system abstracts all these things.
+
+- Kubernetes does not match the traditional networking environments.
+
+- Traditional environments
+
+    - Nodes live long, have predictable lifecycle.
+
+    - Addressing is topoloby aware (subnet for datacenter, rack)
+
+    - one interface = one IP
+
+- Kubernetes environment
+
+    - IP address allocation is topology unware
+
+    - Allocates 100+ IPs per node, each physical port on network needs to handle much more addressing.
+
+    - Lifetimes are short, churn is high ( address is constantly changing, Pods are coming and going)
+
+## How do CNI plugins work with Kubernetes
+
+- CNI plugins have two components
+
+    - CNI binary (calico CNI) that configures the Pod's interfaces (connectivity)
+
+    - A daemon that manages routing (Reachability)
+
+## Connectivity
+
+- Create a 'veth' pair (point to point virtual tunnel)
+
+- Move one end of the pair into the container's namespace.
+
+- Configure an ip and route in the container's namespace.
+
+- Packets leaving the container are simply routed through the host's IP stack. They are usually masqueraded.
+
+https://lwn.net/Articles/531114/
+
+## Reachability
+
+- Goal - make every podCIDR which is assigned dynamically reachable from every node.
+
+- Announce dynamic routes to some peers
+
+- CNI Daemon that runs on every host, programs the network with learned routes.
+
+- Programming the podCIDR can take any forms.
+
+    - overlay networks - programe every nodes route table, not routers. (VXLAN, IPIP) routers need not know podCIDR
+
+    - Routing protocol - OSPF/BGP 
+        
+        - podCIDR are real address in the network, reachable not only internal to cluster but also by external to cluster.
+
+        - Need to have router to talk to, routers need to have enough memory and scale to accept the churn kubernetes creates.
+
+- kubelet is configured with --cni-conf-dir which is scaned every 5 seconds and whichever one has the lowest ordered filenames.
+
+- Write only one CNI configuration file to disk.
+
+
+## Plugin chaining
+
+{
+    "cniVersion":
+    "name":
+    "plugins": [
+        { "type": "ptp" },
+        { "type": "iptables-allow" },
+        { "type": "tuning" },
+        {   "sysctl": {
+                "net.core.somaxconn": "9001"
+            }
+        }
+    ]
+}
+
+- multiple plugins are executed in a row for a container.
+
+- result of previous one is given to next plugin.
+
+## Self hosting
+
+- Deploy plugins using kubernetes.
+
+- A manifest for CNI plugin should
+
+    - Set up routing daemon
+
+    - Copy the plugin binaries to the host
+
+    - Install the configuration file
+
+Installing the configuration file tells the host that the network is up. Do at last.
+
+- Need to run daemon in host network.
+
+
+
+
+
+
+
+
+
