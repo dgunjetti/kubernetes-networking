@@ -150,11 +150,11 @@ CNI_COMMAND=DEL CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni 
 
 - Some CNI network plugins, maintained by the containernetworking team.
 
-main - interface creating, L2 connectivity on host.
+Main - interface creating, L2 connectivity on host.
 - bridge, ipvlan, macvlan, ptp, host-device, windows
 
-ipam - ip address allocation
-- dhcp, host-local, static
+IPAM - ip address allocation
+- DHCP, host-local, static
 
 meta - other plugins,  bandwidth or qos guarantees
 - flannel, tuning, portmap, bandwidth
