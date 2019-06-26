@@ -120,6 +120,21 @@ how plugin is given data by runtime and how status is reported back to runtime.
 
 - VERSION - return version of plugin.
 
+CNI_COMMAND=VERSION ./ptp < conf
+shows the version supported.
+
+ip netns add demo
+
+CNI_COMMAND=ADD CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
+
+- demoeth0 interface is created inside the network namespace demo with IP address 10.0.0.10 and adds default route pointing to 10.0.0.1
+
+- vethxx interface is created on host root namespace with ipaddress 10.0.0.1 and adds route to 10.0.0.10 point to vethxx
+
+
+CNI_COMMAND=DEL CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
+
+- Interfaces and routes are deleted in container and host root namespace.
 
 ## Plugins
 
