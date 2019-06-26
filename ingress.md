@@ -117,6 +117,63 @@ bar.foo.com --|                 |-> bar.foo.com s2:80
 
 ## TLS
 
-- 
+- You can secure an Ingress by specifying a Secret that contains a TLS private key and certificate. 
+
+- Ingress controller to secure the channel from the client to the load balancer using TLS. 
+
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: testsecret-tls
+  namespace: default
+data:
+  tls.crt: base64 encoded cert
+  tls.key: base64 encoded key
+type: kubernetes.io/tls
+```
+
+```
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: tls-example-ingress
+spec:
+  tls:
+  - hosts:
+    - sslexample.foo.com
+    secretName: testsecret-tls
+  rules:
+    - host: sslexample.foo.com
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: service1
+            servicePort: 80
+```
+
+- certificate is created with CN for sslexample.foo.com.
+
+
+## Ingress Controllers
+
+- In order for the Ingress resource to work, the cluster must have an ingress controller running.
+
+- Kubernetes as a project currently supports and maintains GCE and nginx controllers.
+
+## Additional controllers
+
+-  HAProxy
+
+- Contour
+
+
+## Using multiple Ingress controllers
+
+- You may deploy any number of ingress controllers within a cluster. 
+
+- When you create an ingress, you should annotate each ingress with the appropriate ingress.class to indicate which ingress controller should be used if more than one exists within your cluster.
+
 
 
