@@ -1,3 +1,6 @@
+https://www.youtube.com/watch?v=y2bhV81MfKQ
+https://www.youtube.com/watch?v=0Omvgd7Hg1I
+
 ## kubernetes
 
 - Kubernetes is API-centric system. everything communicates with API.
@@ -112,6 +115,30 @@ gcloud compute routes create vm2 --destination-range=x.y.z.0/24 --next-hop-insta
 - (vm1) eth0 -> NETWORK -> (VM2)eth0 -> cb0 
 
 - There is no encapsulation or overlay in GCE flow.
+
+## Overlays
+
+- L2 encapsultion in L3 (UDP) packet.
+
+- Traverse the native network between nodes.
+
+- Flannel - VXLAN
+
+- virtual ethernet device (vNIC) flannel0
+
+- cbr0 -> flannel0 -> eth0
+
+- pod1 sends traffic to pod2
+
+- cbr0 -> flannel0
+
+- src:pod1 dst:pod2 -> flannel0 -> mac src:vm1 dst:vm2 UDP (mac, src:pod1 dst:pod2)
+
+- Mapping of pod ip address to node ip address is done from userspace agent. 
+
+- eth0 -> NETWORK -> VM2 (eth0)
+
+- eth0 -> flannel0 -> decapsulates the packet -> cbr0
 
 
 ## Services
@@ -335,6 +362,70 @@ return path
 - specify onlylocal annotation in the service.
 
 
+## Network Policy
+
+- Applications are organized into tiers.
+
+- Users wants to 'lock down' the network.
+
+- fe -> be -> db
+
+- Network policy rules are based on Labels not pod ip's as they are epimeral.
+
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+    name: store-net-policy
+spec:
+    podSelector:
+        matchLabels:
+            role: db
+    ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+                role: be
+        ports:
+        - protocol: tcp
+          port: 6379
+```
+
+- Select pods that are subject of policy.
+
+- Pods that are allowed to send traffic to subject.
+
+- Ports allowed.
+
+- Policies are per namespace.
+
+- Apply a default deny policy.
+
+- Apply policy to whitelist traffic to pods.
+
+- ordering is important.
+
+- Network policy are additive.
+
+- there is no way to specify 'deny' in network policy
+
+- implemented in L3/L4, no L7 support.
+
+- Policy are implemented by network plugin.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 - liveness probes
 - graceful termination
 - cloud health checks
@@ -343,3 +434,7 @@ return path
 - ipam
 - ssl
 
+
+## Namespaces
+
+- Private scope for creating and managing objects.
