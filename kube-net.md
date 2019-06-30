@@ -3,13 +3,13 @@ https://www.youtube.com/watch?v=0Omvgd7Hg1I
 
 ## kubernetes
 
-- Kubernetes is API-centric system. everything communicates with API.
+- Kubernetes is a container cluster manager, that distributes workloads across entire cluster and manages compute, storage, networking for workloads.  
 
 ## Pod
 
 - Pod is group of containers scheduled together.
 
-- Everything side the pod share network. Container see each other as localhost. They share the IP address. 
+- Everything inside the pod share network. Container see each other as localhost. 
 
 ## Controller
 
@@ -33,7 +33,7 @@ Ex: app name, tier(frontend/backend), stage (dev/test/prod)
 
 ## Selector
 
-- Selectors are counterparts of labels. Labels identifies the object. Selector select them based on labels. This similar to - select pods where app=mysql
+- Selectors are counterparts of labels. Labels identifies the object. Selector select objects based on labels. This similar to - select pods where app=mysql
 
 - Provides loose coupling. User can manage groups how ever they need.
 
