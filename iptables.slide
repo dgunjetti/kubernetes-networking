@@ -1,0 +1,445 @@
+Introduction to iptables
+
+Deepak Gunjetti
+Solution Architect @ Andcloud
+deepak@andcloud.io
+@dgunjetti
+
+
+* iptables
+
+- The Linux kernel comes with a packet filtering framework named netfilter. 
+
+- It allows you to allow, drop and modify traffic in and out of a system. 
+
+- iptables builds upon this functionality to provide command-line firewall utility, which you can configure by adding rules.
+
+* iptables, start, stop, restart
+
+    - /etc/init.d/iptables start
+
+    - /etc/init.d/iptables stop
+
+    - /etc/init.d/iptables restart
+
+* iptables files
+
+    - /etc/init.d/iptables – init script to start|stop|restart and save rulesets.
+
+    - /etc/sysconfig/iptables – where Rulesets are saved.
+
+    - /sbin/iptables – binary
+
+* iptables
+
+- The packet filtering mechanism provided by iptables is organized into three different kinds of structures: 
+    
+    tables 
+    chains 
+    targets. 
+
+* tables
+
+- table is something that allows you to process packets in specific ways.
+
+- these tables have chains attached to them
+
+* chains
+
+- chains allow you to inspect traffic at various points, such as when they just arrive on the network interface or just before they’re handed over to a process.
+
+* rules
+
+- match specific packets — such as TCP packets going to port 80 — and associate it with a target.
+
+* target
+
+- A target decides the fate of a packet, such as allowing or rejecting it.
+
+* Default policy
+
+- When a packet arrives (or leaves), iptables matches it against rules in these chains one-by-one. 
+
+- When it finds a match, it jumps onto the target and performs the action associated with it. 
+
+- If it doesn’t find a match with any of the rules, it simply does what the default policy of the chain tells it to. 
+
+- The default policy is also a target. By default, all chains have a default policy of allowing packets.
+    $ iptables -L | grep policy
+        Chain INPUT (policy ACCEPT)
+        Chain FORWARD (policy ACCEPT)
+        Chain OUTPUT (policy ACCEPT)
+
+* Default policy, ACCEPT
+
+- command to accept connections by default:
+
+    $ iptables --policy INPUT ACCEPT
+      iptables --policy OUTPUT ACCEPT
+      iptables --policy FORWARD ACCEPT
+
+* Default policy, DROP
+
+- Deny all connections and manually specify which ones you want to allow to connect.
+
+    iptables --policy INPUT DROP
+
+* Types of Tables 
+
+- There are four tables
+    
+    filter - whether packet should be allowed or not.
+    
+    mangle - alter packet headers in various ways, such as changing TTL values.
+    
+    nat - change source or destination address of packet.
+
+    raw - track connection state.
+
+* Types of chains, PREROUTING
+
+- apply to packets arriving on network interface 
+
+- This chain in present in nat, mangle and raw tables.
+
+* Types of chains, INPUT
+
+- apply to packet just before packet is given to local process.
+
+- This chain is present in mangle, filter tables.
+
+* Types of chains, OUTPUT
+
+- Apply to packets just after they have been produced by process.
+
+- This chain is present in raw, mangle, nat and filter tables.
+
+* Types of chains, FORWARD
+
+- Apply to packets that are routed through the host.
+
+- This chain is present in mangle, filter tables.
+
+* Types of chains, POSTROUTING
+
+- Apply to packet before giving to network interface.
+
+- This chain is present in nat, mangle tables.
+
+* Types of chains
+
+.image img/table.png
+
+* Targets
+
+- they decide the fate of a packet.
+
+- Terminating target - The packet won’t be matched against any other rules. 
+
+    - ACCEPT - accept the packet
+
+    - DROP 
+        > ping 192.168.0.10
+        Request timed out
+
+    - REJECT - sends a "connection reset" packet in case of TCP, or a “destination host unreachable” packet in case of UDP or ICMP.
+        > ping 192.168.0.10
+        Destination port unreachable
+
+* Targets
+
+- NonTerminating target - keep matching other rules even if a match was found. 
+
+    - LOG - log about packet in kernel logs.
+
+- you can create a custom chain, if there are complex set of rules.
+
+* iptable commands
+
+- iptable for IPv4
+
+- ip6table for IPv6
+
+- execute iptables commands as root.
+
+* save
+
+    $ service iptables save
+
+ruleset are saved in /etc/sysconfig/iptables file 
+
+* List
+
+- “-L” (List ruleset), “-v” (Verbose) and “-n” (Displays in numeric format).
+
+    iptables -L -n -v
+
+- Display IPTables rules with numbers. With the help of argument “–line-numbers” you can append or remove rules.
+
+- -t to display rules by table. default shown table is filter table.
+
+
+* List rules in chains
+
+    iptables -L INPUT -n --line-numbers
+
+    iptables -L OUTPUT -n --line-numbers
+
+
+* Block IP
+
+- block all connections from the IP address 10.10.10.10
+
+    iptables -t filter -A INPUT -s 10.10.10.10 -j DROP
+
+- -t  specifies the table 
+
+- -A  append rule to existing rule sin INPUT chain
+
+- -s  source IP to be blocked
+
+- -j  specify the target, DROP - dont respond, just drop. If REJECT - respond with 'connection reset'
+
+
+* Block IP..
+
+- Since filter table is default, it can be omited.
+
+    iptables -A INPUT -s 10.10.10.10 -j DROP
+
+    iptables -A INPUT -s 59.45.175.62 -j REJECT
+
+    iptables -A INPUT -s 59.45.175.0/24 -j REJECT
+
+
+* Block connection to specific port
+
+- block SSH connections from 10.10.10.10
+
+    iptables -A INPUT -p tcp --dport ssh -s 10.10.10.10 -j DROP
+
+- -p to specify the protocol
+
+    iptables -A INPUT -p tcp --dport ssh -j DROP
+
+* module
+
+    iptables -A INPUT -p tcp -m multiport --dports 22,5901 -s 59.45.175.0/24 -j DROP
+
+- -m load multiport module
+
+-  block ICMP address mask requests (type 17). 
+
+    iptables -A INPUT -p icmp -m icmp --icmp-type 17 -j DROP
+
+* Deleting rules
+
+    iptables -D INPUT -s 221.194.47.0/24 -j REJECT
+
+- delete rules through their line numbers
+
+    iptables -D INPUT 2
+
+- if you’re deleting a bunch of rules, you should first delete the ones with the highest line numbers, as line numbers change as rules are deleted.
+
+- Remove all the rules from filter table’s INPUT chain
+
+    iptables -F INPUT
+
+* Insert rules
+
+- insert a rule at a position, 
+
+- Ex: While you’re seeing attacks from 59.45.175.0/24, assume that you need to whitelist 59.45.175.10.
+
+   
+- Since iptables evaluates rules in the chains one-by-one, you simply need to add a rule to “accept” traffic from this IP above the rule blocking 59.45.175.0/24. 
+
+    iptables -I INPUT 1 -s 59.45.175.10 -j ACCEPT
+
+* Replace rules
+
+- replace rules with the -R
+
+    iptables -R INPUT 1 -s 59.45.175.12 -j ACCEPT
+
+* connection tracking
+
+- Allow return traffic, avoid getting blocked by INPUT rules.
+
+- iptables is stateful firewall, it provides connection tracking module named "conntrack".
+
+- connection could be one of following states
+
+- NEW: very first packet of connection
+
+- ESTABLISHED: received packets from other end.
+
+- RELATED: related to another ESTABLISHED connection, FTP data connection related to control connection.
+
+- INVALID: packet doesn’t have a proper state.
+
+* connection tracking..
+
+- UNTRACKED: connection tracking in the raw table with the NOTRACK target end up in this state.
+
+- DNAT: virtual state used to represent packets whose destination address was changed by rules in the nat table.
+
+- SNAT: packets whose source address was changed.
+
+* connection tracking..
+
+    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+- --ctstate  sets the states
+
+- this rule is usually at the very top.
+
+    iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+
+- drop any packets in INVALID state
+
+* Changing the default policy
+
+- change the default policy with the -P
+
+    iptables -P INPUT DROP
+
+- you should first accept packets from established and related connections before using this rule
+
+* Selecting interfaces
+
+- Since iptables matches packets to every rule in a chain, things can get really slow when there are a lot of rules. 
+
+- For example, on a typical Nginx/PHP-FPM stack, Nginx communicates with PHP over localhost, which uses the loopback interface. Similarly, PHP may connect to a database server like Redis using the loopback interface. It’s useless to filter these kinds of traffic, so you can allow it.
+
+- you can add a rule like this at the top of the INPUT chain:
+
+    iptables -A INPUT -i lo -j ACCEPT
+
+- -i flag specifies the input interface
+
+-  use the -I to add it at the top.
+
+* Selecting interfaces..
+
+- For the OUTPUT chain, you’ll need to use the -o flag, which stands for “output interface”. 
+
+- Ex: say you want to block an advertiser when you’re on WiFi. The advertiser uses the IP 121.18.238.0/29 and the WiFi interface is wlan0.
+
+    iptables -A OUTPUT -o wlan0 -d 121.18.238.0/29 -j DROP
+
+* Negating conditions
+
+- iptables provides the negation operator (!) to negate condition checks.
+
+- A very common way to run node.js or Go web applications on a server is to place a server such as nginx in front of them. Once you’ve configured nginx to forward traffic to the app, there’s no need for it to be directly accessible. In other words, you simply need to accept TCP traffic intended for HTTP, HTTPS and SSH — and you could drop the rest:
+
+    iptables -A INPUT -p tcp -m multiport ! --dports 22,80,443 -j DROP
+
+- you should first accept packets from established and related connections before using this rule!
+
+
+* Blocking invalid TCP packets with the tcp module
+
+- --tcp-flags  check individual TCP flags that should be set in the packet.
+
+    iptables -A INPUT -p tcp -m tcp --tcp-flags ALL FIN,PSH,URG -j DROP
+
+- packet with SYN and FIN set is invalid
+
+    iptables -A INPUT -p tcp -m tcp --tcp-flags SYN,FIN SYN,FIN -j DROP
+
+* Limiting packets: the limit module
+
+- Suppose, you’re given a bucket containing 5 tokens. Whenever a packet comes in, you should throw out a token. Also, you can’t allow a packet if the bucket is empty. In addition, you can add back tokens at the rate of 3 in an hour (or 1 in 20 minutes). Technically, the number of tokens is the “limit-burst” value, and the rate at which you can refill it is the “limit” value.
+
+- suppose you want to ratelimit ICMP packets
+
+    iptables -A INPUT -p icmp -m limit --limit 1/sec --limit-burst 1 -j ACCEPT
+
+- s soon as the flow of packets exceed this limit, the traffic passes through this rule over to the other rules. Thus, you should set a default policy of DROP on the INPUT chain for this to work.
+
+* Per-IP packet limits: the recent module
+
+    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSHLIMIT --rsource
+    
+    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSHLIMIT --update --seconds 180 --hitcount 5 --name SSH --rsource -j DROP
+
+- We’ve set a name for the limit module by which it can keep track of things — in our case, it’s “SSHLIMIT”. The first line adds the source IP to the list that the recent module maintains. If the IP is already on this list, then the entry for this IP is updated. In the next line, we check whether the counter has hit the value of 5 in 180 seconds. If that’s indeed the case, we drop the packet. Thus, this allows 4 new SSH connections from an IP in 3 minutes.
+
+* The owner module
+
+- block traffic on a per user basis.
+
+    iptables -A OUTPUT -d 31.13.78.35 -m owner --uid-owner bobby -j DROP
+
+- You can use a numeric user ID or a range (such as 1000-1006) for the argument. 
+
+- The owner module is valid only in the OUTPUT and POSTROUTING chains.
+
+* Custom chains
+
+- Sometimes, you may need to do some complex processing on the same packet over and over. 
+
+- For example, say you want to allow SSH access just for a couple of IP ranges. 
+
+- First, you need to make a custom chain.
+
+    iptables -N ssh-rules
+
+- you can add the rules in the new chain.
+
+- since custom chains don’t have a default policy, make sure you end up doing something to the packet.
+
+    iptables -A ssh-rules -s 18.130.0.0/16 -j ACCEPT
+    iptables -A ssh-rules -s 18.11.0.0/16 -j ACCEPT
+    iptables -A ssh-rules -j DROP
+
+* Custom chains
+
+- you should put a rule in the INPUT chain that refers custom chains. 
+
+    iptables -A INPUT -p tcp -m tcp --dport 22 -j ssh-rules
+
+- If you want to delete this chain, you should first delete any rules that reference to it. Then, you can remove the chain with:
+
+    iptables -X ssh-rules
+
+* Logging packets: the LOG target
+
+-  non-terminating target
+
+- it logs the nature of the packet matched in the kernel logs. /var/log/syslog or /var/log/messages
+
+- say you want to log invalid TCP packets before dropping them. You should first log the packet, and then drop it:
+
+    iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN FIN,SYN -j LOG
+    iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN FIN,SYN -j DROP
+
+- LOG target also takes a --log-prefix option, and you can use this so that you can search the log easily later:
+
+    iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN FIN,SYN -j LOG --log-prefix=iptables:
+
+* iptables-save and iptables-restore
+
+- the workflow isn’t particularly nice. 
+
+- First, you have to first list the existing rules. Next, you need to figure out where a new rule should go, and then write a command to insert the rule. 
+
+- Fortunately, iptables also comes with two commands, iptables-save and iptables-restore. 
+
+- These commands dump rules from all chains and filters into standard output. You can redirect it to a file
+
+    iptables-save > iptables.rules
+
+- Now, you can edit this file comfortably with a text editor. When you’re done, you can apply these rules with:
+
+    iptables-restore < iptables.rules
+
+* Preserving iptables rules across reboots
+
+- iptables rules aren’t persistent — they’re lost when you reboot your system. 
+
+- iptables-persistent package run the iptables-save/restore commands to save iptables configuration to a file.
+

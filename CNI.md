@@ -5,18 +5,27 @@
 - containers are made of 
 
 Namespaces
+ 
  - Process
-   Network
-   Mount
-   UTS
-   IPC 
-   User
+
+ - Network
+ 
+ - Mount
+   
+ - UTS
+
+ - IPC
+
+ - User
 
 CGroups
-- CPU 
-  Memory
+
+- CPU
+
+-  Memory
 
 Layered Filesystem
+
 - AUSF
 
 
