@@ -207,14 +207,13 @@ Real Servers
     # Make the tunl0 interface hidden
     net.ipv4.conf.tunl0.hidden = 1
 
-High Availability, Heartbeat
+* High Availability, Heartbeat
 
 - Heartbeat be used to monitor a pair of LB and ensure that one of them owns the VIP at any given time.
 
 - If no heartbeat message is received for a predetermined period of time then the host is considered to have failed. When this occurs resources can be taken over. 
 
 - newly activated linux director sending gratuitous ARP packets for the VIP. All hosts on the network should receive these ARP packets and thus send subsequent packets for the VIP to the new linux director.
-
 
 
 
