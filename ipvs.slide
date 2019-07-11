@@ -1,0 +1,488 @@
+Introduction to IPVS
+Linux loadbalancer
+
+Deepak Gunjetti
+Software Architect @ Andcloud
+deepak@andcloud.io
+@dgunjetti
+
+* IPVS
+
+- IPVS (IP Virtual Server) is built on top of the Netfilter and implements transport-layer load balancing as part of the Linux kernel. 
+
+- It is a forwarder. It works on L4. 
+
+- It is configured via user-space utility ipvsadm 
+
+- IPVS is incorporated into the Linux Virtual Server, where it runs on a host acts as a loadbalancer in front of a cluster of real servers.
+
+- IPVS can direct requests for TCP- and UDP- based services to the real servers.
+
+- Make services of the real servers appear as virtual services on a single IP address.
+
+- It is extremely fast and allows services to be scaled to 10s or 100s of thousands of simultaneous connections.
+
+
+* IPVS..
+
+- ipvsadm is cli tools for interacting with the IP virtual server table in the kernel. 
+
+- ip_vs is the kernel module that does the actual connection manipulating.
+
+
+* LVS 
+
+- The Linux Virtual Server Project (LVS) implements layer 4 switching in the Linux Kernel. This allows TCP and UDP sessions to to be load balanced between multiple real servers.
+
+-  It is able to handle upwards of 100,000 simultaneous connections. 
+
+- It is easily able to load balance a saturated 1Gbit ethernet link using inexpensive commodity hardware. 
+
+* Layer 4 Switching
+
+- user -> Linux LB -> Real servers 
+
+- Packets received at LB.
+
+- Decision is made to send packet to one of real servers. subsequent packets are sent same server.
+
+* Forwarding Packets
+
+- Four way of forwarding packets
+
+    - NAT
+
+    - IPIP encapsulation (tunneling)
+
+    - Direct routing 
+
+* NAT
+
+- Manipulate source or/and destination address for private network to access internet.
+
+- L4 switching - Packet recieved from user, destination IP and port is changed to point to real server.
+
+- The return traffic goes through LB, source IP and port is changed to reflect LB address.
+
+* Direct routing
+
+- Packets are forwarded directly to real server. MAC destination is set that of real server.
+
+- Real server must be configured to accept virtual IP address of LB.
+
+- Dummy interface with same IP address as VIP, but it is not advertised.
+
+- or Packet filtering to redirect traffic addressed to VIP to localport.
+
+- The real server may send replies directly back to the end user. Thus, the LB does not need to be in the return path. Thus higher throughput can be obtained.
+
+- LB and Servers are in same network.
+
+* IPIP
+
+- Allows packets addressed to an IP address to be redirected to another address, possibly on a different network.
+
+- return traffic goes directly to user.
+
+* Virtual service 
+
+- Virtual service is defined by VIP, port and protocol or firewall mark.
+
+- optionally it can be associated with persistence timeout, connection received from same IP address is forwarded to same server before timeout expiry.
+
+- Firewall mark - packet may be marked with 32-bit unsigned value using iptables. This mark is used to route packets accordingly.
+
+* Scheduling
+
+- virtual service is assigned a scheduling algorithm
+
+- LVS the schedulers are implemented as separate kernel modules. 
+
+-  The simplest scheduling algorithms areare round robin and least connected. 
+
+- imple strategy of allocating connections to each real server in turn and allocating connections to the real server with the least number of connections respectively.
+
+- Weighted variants of these schedulers allow connections to be allocated proportional to the weighting of the real server, more powerful real servers can be set with a higher weight and thus, will be allocated more connections.
+
+* NAT
+
+    172.17.60.207 - LB - 192.168.6.1 -> 192.168.6.0/24 (real servers)
+
+- Enable IP forwarding 
+
+    sysctl -p net.ipv4.ip_forward = 1
+
+    ifconfig eth0 172.17.60.201 netmask 255.255.255.0 broadcast 172.17.60.255
+
+- configure IPVS
+
+    ipvsadm -A -t 172.17.60.201:80
+    ipvsadm -a -t 172.17.60.201:80 -r 192.168.6.4:80 -m
+    ipvsadm -a -t 172.17.60.201:80 -r 192.168.6.4:80 -m
+
+* NAT..
+
+- Run tcpdump on LB see that destination address is changed.
+
+    tcpdump -n -i any port 80
+    12:40:40.965499 10.2.3.4.34802 > 172.17.60.201.80: 
+        S 2555236140:2555236140(0) win 5840 
+        <mss 1460,sackOK,timestamp 16690997 0,nop,wscale 0>
+    12:40:40.967645 10.2.3.4.34802 > 192.168.6.5.80: 
+        S 2555236140:2555236140(0) win 5840 
+
+- replies source address is changed.
+
+    12:40:40.966976 192.168.6.5.80 > 10.2.3.4.34802: 
+        S 2733565972:2733565972(0) ack 2555236141 win 5792 
+        <mss 1460,sackOK,timestamp 128711091 16690997,nop,wscale 0> (DF)
+    12:40:40.968653 172.17.60.201.80 > 10.2.3.4.34802: 
+        S 2733565972:2733565972(0) ack 2555236141 win 5792 
+        <mss 1460,sackOK,timestamp 128711091 16690997,nop,wscale 0> (DF)
+
+* NAT...
+
+- ipvsadm -L -n can be used to show the number of active connections.
+
+- ipvsadm -L -stats will show the number of packets and bytes sent and received per second.
+
+- ipvsadm -L -rate will show the total number of packets and bytes sent and received.
+
+* Direct routing
+
+172.17.0.0/16 LB - 172.17.0.0/16 - Real servers 
+
+- MAC addresses is changed to that of real servers. 
+
+- real servers need to be configured to accept traffic addressed to the VIP. 
+
+- LB 
+
+    sysctl -p net.ipv4.ip_forward = 1
+    
+    ifconfig eth0:0 172.17.60.201 netmask 255.255.0.0 broadcast 172.17.255.255
+
+    ipvsadm -A -t 172.17.60.201:80
+    ipvsadm -a -t 172.17.60.201:80 -r 172.17.60.199:80 -g
+    ipvsadm -a -t 172.17.60.201:80 -r 172.17.60.200:80 -g
+
+- LB is not set as gateway for real servers as return traffic goes directly to user.
+
+* Direct routing..
+
+- Real server
+
+    ifconfig lo:0 172.17.60.201 netmask 255.255.255.255
+
+-  netmask should be 255.255.255.255 to accept only traffic to 172.17.60.201 not 172.17.0.0/16
+
+
+* Tunneling 
+
+- packets are forwarded to the real servers using IP encapsulated in IP
+
+- real servers may be on a different network to the LB
+
+LB 
+
+    sysctl -p net.ipv4.ip_forward = 1
+
+    ifconfig eth0:0 172.17.60.201 netmask 255.255.0.0 broadcast 172.17.255.255
+
+    ipvsadm -A -t 172.17.60.201:80
+    ipvsadm -a -t 172.17.60.201:80 -r 172.17.60.199:80 -i
+    ipvsadm -a -t 172.17.60.201:80 -r 172.17.60.200:80 -i
+
+* Tunneling..
+
+Real Servers
+
+    ifconfig tunl0 172.17.60.201 netmask 255.255.255.255
+
+- Enable forwarding and hide loopback.
+
+    net.ipv4.ip_forward = 1
+    # Enable configuration of hidden devices
+    net.ipv4.conf.all.hidden = 1
+    # Make the tunl0 interface hidden
+    net.ipv4.conf.tunl0.hidden = 1
+
+High Availability, Heartbeat
+
+- Heartbeat be used to monitor a pair of LB and ensure that one of them owns the VIP at any given time.
+
+- If no heartbeat message is received for a predetermined period of time then the host is considered to have failed. When this occurs resources can be taken over. 
+
+- newly activated linux director sending gratuitous ARP packets for the VIP. All hosts on the network should receive these ARP packets and thus send subsequent packets for the VIP to the new linux director.
+
+
+
+
+* IPvs for kubernetes
+
+- Kube-proxy, the building block of service routing has relied on the battle-hardened iptables to implement the core supported Service types such as ClusterIP and NodePort. 
+
+- However, iptables struggles to scale to tens of thousands of Services because it is designed purely for firewalling purposes and is based on in-kernel rule lists.
+
+- Even though Kubernetes already support 5000 nodes in release v1.6, the kube-proxy with iptables is actually a bottleneck to scale the cluster to 5000 nodes.
+
+- One example is that with NodePort Service in a 5000-node cluster, if we have 2000 services and each services have 10 pods, this will cause at least 20000 iptable records on each worker node, and this can make the kernel pretty busy.
+
+* IPVS for kubernetes
+
+-  IPVS is specifically designed for load balancing and uses more efficient data structures (hash tables) allowing for almost unlimited scale under the hood.
+
+* IPVS-based Kube-proxy 
+
+- IPVS mode is configure via --proxy-mode=ipvs
+
+- It implicitly uses IPVS NAT mode for service port mapping.
+
+- --ipvs-scheduler is added to specify the IPVS load balancing algorithm. If it’s not configured, then round-robin (rr) is the default value.
+
+    rr: round-robin
+    lc: least connection
+    dh: destination hashing
+    sh: source hashing
+    sed: shortest expected delay
+    nq: never queue
+
+* IPVS Service Network Topology
+
+- When creating a ClusterIP type Service, IPVS proxier will do the following three things:
+
+    - Make sure a dummy interface exists in the node, defaults to kube-ipvs0
+    
+    - Bind Service IP addresses to the dummy interface
+
+    - Create IPVS virtual servers for each Service IP address respectively
+
+* IPVS Service Network Topology
+
+    # kubectl describe svc nginx-service
+      Type:			ClusterIP
+      IP:			    10.102.128.4
+      Endpoints:		10.244.0.235:8080,10.244.1.237:8080
+
+    # ip addr
+      kube-ipvs0: <BROADCAST,NOARP> mtu 1500
+      inet 10.102.128.4/32
+
+    # ipvsadm -ln
+        -> RemoteAddress:Port Forward Weight ActiveConn InActConn     
+    TCP  10.102.128.4:3080 rr
+    -> 10.244.0.235:8080            Masq    1      0          0         
+    -> 10.244.1.237:8080            Masq    1      0          0  
+
+* IPVS Service Network Topology...
+
+-  relationship between a Kubernetes Service and IPVS virtual servers is 1:N
+
+- External IP type Service which has  two IP addresses - ClusterIP and External IP. IPVS proxier will create 2 IPVS virtual servers - one for Cluster IP and another one for External IP. 
+
+- The relationship between a Kubernetes Endpoint (each IP+Port pair) and an IPVS virtual server is 1:1.
+
+- Deleting of a Kubernetes service will trigger deletion of the corresponding IPVS virtual server, IPVS real servers and its IP addresses bound to the dummy interface.
+
+* Port Mapping
+
+- There are three proxy modes in IPVS:
+    - NAT(masq)
+    - IPIP
+    - DR  
+
+- Only NAT mode supports port mapping.
+
+- IPVS mapping Service port 3080 to Pod port 8080.
+
+    TCP  10.102.128.4:3080 rr
+        -> 10.244.0.235:8080            Masq    1      0          0         
+        -> 10.244.1.237:8080            Masq    1      0  
+
+* Session Affinity
+
+- IPVS supports client IP session affinity (persistent connection).
+
+- When a Service specifies session affinity, the IPVS proxier will set a timeout value (180min=10800s by default) in the IPVS virtual server. 
+
+    # kubectl describe svc nginx-service
+    Session Affinity:	ClientIP
+
+    # ipvsadm -ln
+      -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+    TCP  10.102.128.4:3080 rr persistent 10800
+
+* Iptables & Ipset in IPVS Proxier
+
+- IPVS is for load balancing and it can’t handle other workarounds in kube-proxy, e.g. packet filtering, hairpin-masquerade tricks, SNAT, etc.
+
+- IPVS proxier leverages iptables in the above scenarios. Specifically, ipvs proxier will fall back on iptables in the following 4 scenarios:
+
+    - kube-proxy start with –masquerade-all=true
+    
+    - Specify cluster CIDR in kube-proxy startup
+    
+    - Support Loadbalancer type service
+    
+    - Support NodePort type service
+
+* Iptables & Ipset in IPVS Proxier...
+
+- However, we don’t want to create too many iptables rules. So we adopt ipset for the sake of decreasing iptables rules.
+
+- The following is the table of ipset sets that IPVS proxier maintains:
+
+set name	    members	                usage
+KUBE-CLUSTER-IP	All Service IP + port	masquerade for cases that masquerade-all=true or clusterCIDR specified
+KUBE-LOOP-BACK	All Service IP + port + IP	masquerade for resolving hairpin issue
+KUBE-EXTERNAL-IP	Service External IP + port	masquerade for packets to external IPs
+KUBE-LOAD-BALANCER	Load Balancer ingress IP + port	masquerade for packets to Load Balancer type service
+KUBE-LOAD-BALANCER-LOCAL	Load Balancer ingress IP + port with externalTrafficPolicy=local	accept packets to Load Balancer with externalTrafficPolicy=local
+
+
+* Iptables & Ipset in IPVS Proxier...
+
+    set name	            members	                    usage
+    KUBE-LOAD-BALANCER-FW	Load Balancer ingress IP + port with loadBalancerSourceRanges	Drop packets for Load Balancer type Service with loadBalancerSourceRanges specified
+    KUBE-LOAD-BALANCER-SOURCE-CIDR	Load Balancer ingress IP + port + source CIDR	accept packets for Load Balancer type Service with loadBalancerSourceRanges specified
+    KUBE-NODE-PORT-TCP	NodePort type Service TCP port	masquerade for packets to NodePort(TCP)
+    KUBE-NODE-PORT-LOCAL-TCP	NodePort type Service TCP port with externalTrafficPolicy=local	accept packets to NodePort Service with externalTrafficPolicy=local
+    KUBE-NODE-PORT-UDP	NodePort type Service UDP port	masquerade for packets to NodePort(UDP)
+    KUBE-NODE-PORT-LOCAL-UDP	NodePort type service UDP port with externalTrafficPolicy=local	accept packets to NodePort Service with externalTrafficPolicy=local
+
+* Run kube-proxy in IPVS Mode
+
+- Currently, local-up scripts, GCE scripts, and kubeadm support switching IPVS proxy mode via exporting environment variables (KUBE_PROXY_MODE=ipvs) or specifying flag (--proxy-mode=ipvs). 
+
+- Before running IPVS proxier, please ensure IPVS required kernel modules are already installed.
+
+    ip_vs
+    ip_vs_rr
+    ip_vs_wrr
+    ip_vs_sh
+    nf_conntrack_ipv4
+
+-  you need to enable --feature-gates=SupportIPVSProxyMode=true explicitly for Kubernetes before v1.10.
+
+* Demo
+
+- Launch 2 nginx Docker containers with some dummy content
+
+    $ mkdir /srv/A /srv/B
+    $ echo "This is A" > /srv/A/index.html
+    $ docker run --rm -d -v "/srv/A:/usr/share/nginx/html" --name nginx-A nginx
+    $ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nginx-A
+    172.17.0.3
+
+* Demo...
+
+    $ echo "This is B" > /srv/B/index.html
+    $ docker run --rm -d -v "/srv/B:/usr/share/nginx/html" --name nginx-B nginx
+    $ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nginx-B
+    172.17.0.4
+
+* Demo..
+
+- Check that curl works against both servers:
+    $ curl 172.17.0.3
+    This is A
+    $ curl 172.17.0.4
+    This is B
+
+* Set up a new IPVS service
+
+- set up a new IPVS service bound to our servers public ip address (eg: 1.2.3.4). 
+
+- tcp load balancer using a round robin algorithm ( -t and -s rr ):
+
+    $ sudo ipvsadm -A -t 1.2.3.4:80 -s rr
+    $ sudo ipvsadm -l -n
+    IP Virtual Server version 1.2.1 (size=4096)
+    Prot LocalAddress:Port Scheduler Flags
+    -> RemoteAddress:Port    Forward Weight ActiveConn InActConn
+    TCP  1.2.3.4:80        rr
+
+* Add the Docker container IPs as the “real” hosts
+
+    $ sudo ipvsadm -a -t 1.2.3.4:80 -r 172.17.0.3 -m
+    $ sudo ipvsadm -a -t 1.2.3.4:80 -r 172.17.0.4 -m
+
+* Issue some requests!
+
+$ for i in {1..10}; do curl 1.2.3.4; done
+    This is B
+    This is A
+    This is B
+    This is A
+
+- By default this will use round robin load balancing which will just loop through the list of destinations:
+
+* change the weighting to concentrate connections.
+
+- Enable wrr
+    $ sudo ipvsadm -E -t 1.2.3.4:80 -s wrr
+
+- make one of the node heavier
+
+    $ sudo ipvsadm -e -t 1.2.3.4:80 -r 172.17.0.3 -m -w 3
+
+    $ for i in {1..10}; do curl 1.2.3.4; done
+        This is B
+        This is B
+        This is B
+        This is A
+
+* Check out the stats and rates
+
+    $ sudo ipvsadm -L -n --stats --rate
+    Prot LocalAddress:Port    Conns   InPkts  OutPkts  InBytes OutBytes
+    -> RemoteAddress:Port
+    TCP  1.2.3.4:80           80      560     400      36000   41040
+        -> 172.17.0.3:80        22      154      110     9900    11286
+        -> 172.17.0.4:80        58      406      290     26100   29754
+
+* Check out the stats and rates..
+
+- live view of the values per second.
+
+    $ sudo ipvsadm -L -n --rate
+    IP Virtual Server version 1.2.1 (size=4096)
+    Prot LocalAddress:Port      CPS    InPPS   OutPPS    InBPS   OutBPS
+    -> RemoteAddress:Port
+    TCP  1.2.3.4:80             1      9       6         562     641
+    -> 172.17.0.3:80          0      3       2         169     192
+    -> 172.17.0.4:80          1      6       4         394     449
+
+* IPVS
+
+- Ideally suited for L4 load balancing in front of a Kubernetes cluster’s ingress controllers. This allows the ingress controllers to focus on per-service routing logic (L7) 
+
+* Controlling an IPVS host from Kubernetes
+
+LB1 -> Ingress -> service -> pod
+
+- K8s would control and interact with the IPVS host via its cloud controller manager. 
+
+- The CCM would ensure that the load balancer has the correct K8s node IPs and ports configured for either ingress resources/controllers, specific Node ports, or Service IPs (if these are routable).
+
+* Connection draining between servers
+
+- Weighted Round Robin scheduler to achieve a kind of connection draining effect between two servers O (old) and N(new) 
+
+    Set O.weight to 100
+
+    Add server N with weight 0(0% of requests)
+
+    Over an period T at interval I, reduce O.weight and increase N.weight
+
+* Using healthchecks to remove dead hosts
+
+- If it finds any of them to be bad or not responding as expected, can set the hosts weight value to 0. Effectively stopping traffic from being sent to that host. 
+
+- Once the healthcheck begins returning correctly, requests can be sent once again to that host.
+
+* Healthchecks for IPVS
+
+- ipvsadm can expose --stats and --rates to get metrics coming out of the IPVS hosts 
+
+
