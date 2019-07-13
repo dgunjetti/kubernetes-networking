@@ -1,0 +1,150 @@
+Introduction to flannel
+Networking solution for containers..
+
+Deepak Gunjetti
+Software Architect @ Andcloud
+deepak@andcloud.io
+@dgunjetti
+
+
+* Problem 
+
+- we want to run multiple application on same host, but if they are all web apps then ports are going to conflict.
+
+- Pods provide network namespace isolation, so containers inside pod gets its own IP. 
+
+- But if that IP is good only inside that host. Then to send/receive traffic, we need to map ports of containers to host ports.
+
+- Port mapping will lead to conflicts. 
+
+- We need Pods IP to be routable within the cluster. 
+
+- This the problem flannel solves.
+
+* flannel
+
+- Flannel is responsible for providing a layer 3 IPv4 network between multiple nodes in a cluster. 
+
+- Flannel creates overlay network over host network.
+
+- Kubernetes assigns a unique IP address to each pod.
+
+- This works well on Google Compute where each host is assigned a /24 for use by individual pods. 
+
+- Things are not as easy on other cloud providers where a host cannot get an entire subnet to itself. 
+
+* flannel..
+
+- flannel aims to solve this problem by creating an overlay mesh network that provisions a subnet to each server.
+
+- An overlay network is first configured with an IP range and the size of the subnet for each host. 
+
+- For example, one could configure the overlay to use 10.100.0.0/16 and each host to receive a /24 subnet. 
+
+- Host A could then receive 10.100.5.0/24 and host B could get 10.100.18.0/24.
+
+- Flannel uses either the Kubernetes API or etcd directly to store the network configuration and the allocated subnets.
+
+- container runtime (docker) will assign IP address to container within the host subnet.
+
+- To perform the encapsulation, flannel utilizes Universal TAP/TUN devices (in TUN mode) and proxies the IP fragments between the TUN device and a UDP socket.
+
+* flannel..
+
+- Packets are forwarded using one of several backend mechanisms including VXLAN and various cloud integrations.
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+
+* flannel..
+
+    c1                                                                      c3
+        <-> h1 (10.20.30.0/24) <-> etcd(10.20.0.0/16) <-> h2(10.20.40.0/24)
+    c2                                                                      c4
+
+
+    p1 - c1 <-> eth0 (10.20.30.2/32) 
+                                <-> docker0 10.20.30.1/24 
+    p2 - c2 <-> eth0 (10.20.30.3/32)
+
+
+    docker0 10.20.30.1/24 <-> flannel0 (10.20.30.0/24) <-> flanneld
+
+    flanneld <-> eth0 172.17.10.11
+
+* flannel..
+
+- packets going between host gets encapsulated so that containers c1, c2 could talk to containers c3, c4 with routing managed by flannel and etcd.
+
+- L2 packet is encapsulated into L3
+
+- At destination decapsulation happens and inner L2 packet is sent container. 
+
+- This provides L2 adjacency over L3 network. c1 could ARP for c3, so each container could see each other.
+
+- By having overlay network you can guarentee containers bind to predictably to known ports.
+
+- containers could be able to talk to each other using a common mechanism regardless of on which cloud provider is deployment is.
+
+* Subnet allocation
+
+- etcd has allocated 10.20.30.0 (h1) 10.20.40.0 (h2)
+
+- h3 comes up, it issues a Get /coreos.com/network/subnets to etcd 
+
+- h3 gets all allocated subnets in cluster.
+
+- It selects an unallocated subnet, and does a atomic commit, PUT /coreos.com/network/subnets/10.20.50.0-24
+
+- If it succeeds, allocation is added to etcd.
+
+- if it fails, h3 needs to try.
+
+- h3 puts a WATCH /coreos.com/network/subnets, to get notified on anywhere there is add/delete of subnets.
+
+- This gives mapping of host-subnets for h3
+
+* Encapsulation Backends
+
+- VxLAN (Eth in UDP)
+
+- Encapsulation happens in kernel.
+
+- watches l2/l3 misses; updates arp, fdb. 
+
+- flannel acts as control plane. 
+
+* Manipulation Backends
+
+AWS-VPC : 
+
+- manipulates VPC routes, it indicate subnet backed by instance.
+
+HOST-GW :
+
+- manipulates host routes
+
+- only works within one subnet.
+
+- host IP becomes the default gateway.
+
+
+* VXLAN
+
+- Use in-kernel VXLAN to encapsulate the packets.
+
+    - Type (string): vxlan
+
+    - VNI (number): VXLAN Identifier (VNI) to be used. On Linux, defaults to 1. 
+
+    - Port (number): UDP port to use for sending encapsulated packets. On Linux, defaults to kernel default, currently 8472.
+
+    - GBP (Boolean): Enable VXLAN Group Based Policy. Defaults to false. 
+
+    - DirectRouting (Boolean): Enable direct routes (like host-gw) when the hosts are on the same subnet. VXLAN will only be used to encapsulate packets to hosts on different subnets. Defaults to false.
+
+https://www.youtube.com/watch?v=3eAVHt3lyuM
+
+https://blog.laputa.io/kubernetes-flannel-networking-6a1cb1f8ec7c
+
+

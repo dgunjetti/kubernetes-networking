@@ -1,35 +1,32 @@
-# CNI
+Introduction to CNI
+Glue to network plugins
 
-## How are containers made
+Deepak Gunjetti
+Software Architect @ Andcloud
+deepak@andcloud.io
+@dgunjetti
+
+* How are containers made
 
 - containers are made of 
 
 Namespaces
- 
- - Process
-
- - Network
- 
- - Mount
-   
- - UTS
-
- - IPC
-
- - User
+  - Process
+  - Network
+  - Mount 
+  - UTS
+  - IPC
+  - User
 
 CGroups
-
-- CPU
-
--  Memory
+  - CPU
+  - Memory
 
 Layered Filesystem
-
 - AUSF
 
 
-## Linux Network Namespace
+* Linux Network Namespace
 
 - Create container network isolation instances.
 
@@ -47,26 +44,24 @@ Layered Filesystem
 
 ```
 ip netns add namespace1
-
 ip netns
-
 ls -l /var/run/netns
 ```
 
-## Kubernetes Networking
+* Kubernetes Networking
 
-        Linux Host 
-Pod1 Namespace     Pod2 Namespace
-Container1          Container3
-Container2          Container4
-eth0 10.0.0.5       eth0 10.0.0.6
+          Linux Host 
+  Pod1 Namespace     Pod2 Namespace
+  Container1          Container3
+  Container2          Container4
+  eth0 10.0.0.5       eth0 10.0.0.6
 
-vethxx              vethxx
-docker0 - 10.0.0.1
+  vethxx              vethxx
+  docker0 - 10.0.0.1
 
-eth0 <-> internet
+  eth0 <-> internet
 
-## container networking interface (CNI)
+* container networking interface (CNI)
 
 - CNI concerns itself only creating network connectivity for containers when containers are created, and removing network connectivity when containers are deleted.
 
@@ -82,7 +77,7 @@ eth0 <-> internet
 
 - Orchestrator and Plugin use CNI Library.
 
-## CNI
+* CNI
 
 https://github.com/containernetworking
 
@@ -94,12 +89,13 @@ Git repo has two parts.
     - Spec
     - API/Library
 
-## Spec
-specification defines the basic flow and configuration format of network operations.
+* Spec
+
+- specification defines the basic flow and configuration format of network operations.
 how plugin is given data by runtime and how status is reported back to runtime.
 
 
-## configuration format
+* configuration format
 
 - JSON based configuration.
 
@@ -111,19 +107,19 @@ how plugin is given data by runtime and how status is reported back to runtime.
 
 - configuration is fed to each plugin operation.
 
-```
-{
-  "cniVersion":
-  "name:
-  "type": ptp
-  "ipam": {
-    "type": "host-local",
-    "subnet": "10.0.0.0/24"
-  }
-}
-```
+* configuration format..
 
-## execution flow
+  {
+    "cniVersion":
+    "name:
+    "type": ptp
+    "ipam": {
+      "type": "host-local",
+      "subnet": "10.0.0.0/24"
+    }
+  }
+
+* Execution flow
 
 - Basic commands: ADD DEL and VERSION
 
@@ -133,28 +129,27 @@ how plugin is given data by runtime and how status is reported back to runtime.
 
 - VERSION - return version of plugin.
 
-```
-CNI_COMMAND=VERSION ./ptp < conf
-```
+* Execution flow
+
+  CNI_COMMAND=VERSION ./ptp < conf
+
 shows the version supported.
 
-```
-ip netns add demo
+  ip netns add demo
 
-CNI_COMMAND=ADD CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
-```
+  CNI_COMMAND=ADD CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
 
 - demoeth0 interface is created inside the network namespace demo with IP address 10.0.0.10 and adds default route pointing to 10.0.0.1
 
 - vethxx interface is created on host root namespace with ipaddress 10.0.0.1 and adds route to 10.0.0.10 point to vethxx
 
-```
-CNI_COMMAND=DEL CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
-```
+* Execution flow
+
+  CNI_COMMAND=DEL CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni ./ptp < conf
 
 - Interfaces and routes are deleted in container and host root namespace.
 
-## Plugins
+* Plugins
 
 - Plugins are executables
 
@@ -165,6 +160,8 @@ CNI_COMMAND=DEL CNI_NETNS=/var/run/netns/demo CNI_IFNAME=demoeth0 CNI_PATH=/cni 
 - Plugins are also fed container-specific data via stdin - name of container, namespace, bandwidth requirements, QoS, portmapping - map container internal port to that of host
 
 - Plugins report structured (JSON) result via stdout back to runtime - IP address, interfaces created, routes and DNS info
+
+* Plugins..
 
 - Some CNI network plugins, maintained by the containernetworking team.
 
@@ -177,7 +174,7 @@ IPAM - ip address allocation
 Meta - other plugins,  bandwidth or qos guarantees
 - flannel, tuning, portmap, bandwidth
 
-## 3rd Party plugins
+* 3rd Party plugins
 
 - Project calico
 
@@ -186,7 +183,7 @@ Meta - other plugins,  bandwidth or qos guarantees
 - Canal
 
 
-## Kubernetes with Project Calico network plugin
+* Kubernetes with Project Calico network plugin
 
 create a container in kubernetes.
 
@@ -202,6 +199,8 @@ create a container in kubernetes.
 
 - Calico IPAM queries centralized datastore for IP address, returns IP address to Calico CNI.
 
+* Project Calico..
+
 - Calico CNI proceeds to network the Pod.
 
 - Create veth pair, eth0 on pod side, calixxx (some hash) on host side.
@@ -216,26 +215,29 @@ create a container in kubernetes.
 
 - Kubelet reports pod IP address to API server.
 
-```
-apiVersion: v1
-kind: Node
--
-status:
-  addresses: 
-    - type: InternalIP
-      addresses: 10.0.0.43
-spec:
-  podCIDR: 10.50.0.0/24 // block of ip address that node is going to use for assign pod's ip.
-```
+* Project Calico...
 
-```
-apiversion: v1
-kind: Pod
--
-status: 
-  hostIP: 10.0.0.43
-  podIP: 10.50.0.20
-```
+  apiVersion: v1
+  kind: Node
+  -
+  status:
+    addresses: 
+      - type: InternalIP
+        addresses: 10.0.0.43
+  spec:
+    podCIDR: 10.50.0.0/24 // block of ip address that node is going to use for assign pod's ip.
+
+
+* Project Calico...
+
+
+  apiversion: v1
+  kind: Pod
+  -
+  status: 
+    hostIP: 10.0.0.43
+    podIP: 10.50.0.20
+
 - podCIDR is not in host subnet.
 
 - Node has single network interface
@@ -244,7 +246,7 @@ status:
 
 - Each pod has single network interface always called eth0, has single ip. 
 
-## Summary
+* Summary
 
 - CNI plugin is responsible for creation of interfaces inside network namespaces (eth0 - veth), IP address allocation from PodCIDR, adding routes to make Pod reachable by the whole cluster.
 
@@ -254,7 +256,7 @@ status:
 
     - Reachability
 
-## Why do we need plugins
+* Why do we need plugins
 
 - Because of diverse space and requirements.
 
@@ -267,6 +269,8 @@ status:
 - Plugin system abstracts all these things.
 
 - Kubernetes does not match the traditional networking environments.
+
+* Plugins.. 
 
 - Traditional environments
 
@@ -284,7 +288,7 @@ status:
 
     - Lifetimes are short, churn is high ( address is constantly changing, Pods are coming and going)
 
-## How do CNI plugins work with Kubernetes
+* How do CNI plugins work with Kubernetes
 
 - CNI plugins have two components
 
@@ -292,7 +296,7 @@ status:
 
     - A daemon that manages routing (Reachability)
 
-## Connectivity
+* Connectivity
 
 - Create a 'veth' pair (point to point virtual tunnel)
 
@@ -304,13 +308,15 @@ status:
 
 https://lwn.net/Articles/531114/
 
-## Reachability
+* Reachability
 
 - Goal - make every podCIDR which is assigned dynamically reachable from every node.
 
 - Announce dynamic routes to some peers
 
 - CNI Daemon that runs on every host, programs the network with learned routes.
+
+* Reachability..
 
 - Programming the podCIDR can take any forms.
 
@@ -327,29 +333,28 @@ https://lwn.net/Articles/531114/
 - Write only one CNI configuration file to disk.
 
 
-## Plugin chaining
+* Plugin chaining
 
-```
-{
-    "cniVersion":
-    "name":
-    "plugins": [
-        { "type": "ptp" },
-        { "type": "iptables-allow" },
-        { "type": "tuning" },
-        {   "sysctl": {
-                "net.core.somaxconn": "9001"
-            }
-        }
-    ]
-}
-```
+  {
+      "cniVersion":
+      "name":
+      "plugins": [
+          { "type": "ptp" },
+          { "type": "iptables-allow" },
+          { "type": "tuning" },
+          {   "sysctl": {
+                  "net.core.somaxconn": "9001"
+              }
+          }
+      ]
+  }
+
 
 - multiple plugins are executed in a row for a container.
 
 - result of previous one is given to next plugin.
 
-## Self hosting
+* Self hosting
 
 - Deploy plugins using kubernetes.
 

@@ -216,7 +216,6 @@ Real Servers
 - newly activated linux director sending gratuitous ARP packets for the VIP. All hosts on the network should receive these ARP packets and thus send subsequent packets for the VIP to the new linux director.
 
 
-
 * IPvs for kubernetes
 
 - Kube-proxy, the building block of service routing has relied on the battle-hardened iptables to implement the core supported Service types such as ClusterIP and NodePort. 
