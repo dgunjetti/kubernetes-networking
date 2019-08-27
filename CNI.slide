@@ -320,13 +320,16 @@ https://lwn.net/Articles/531114/
 
 - Programming the podCIDR can take any forms.
 
-    - overlay networks - programe every nodes route table, not routers. (VXLAN, IPIP) routers need not know podCIDR
+    - overlay networks - programe every nodes route table, not routers. (VXLAN, IPIP) 
+    routers need not know podCIDR
 
     - Routing protocol - OSPF/BGP 
         
-        - podCIDR are real address in the network, reachable not only internal to cluster but also by external to cluster.
+        - podCIDR are real address in the network, reachable not only internal to 
+          cluster but also by external to cluster.
 
-        - Need to have router to talk to, routers need to have enough memory and scale to accept the churn kubernetes creates.
+        - Need to have router to talk to, routers need to have enough memory and scale 
+        to accept the churn kubernetes creates.
 
 - kubelet is configured with --cni-conf-dir which is scaned every 5 seconds and whichever one has the lowest ordered filenames.
 
