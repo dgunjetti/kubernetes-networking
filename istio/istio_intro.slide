@@ -1,0 +1,575 @@
+Introduction to Istio
+
+Deepak Gunjetti
+Software Architect @ Andcloud
+deepak@andcloud.io
+@dgunjetti
+
+* Istio
+
+- Developers are using microservices to architect their application.
+
+- Istio provides a uniform way to connect, secure and observe services.
+
+- Istio provides service discovery, traffic routing, and load balancing for your service mesh without having to update your services.
+
+* Istio.. 
+
+- Istio uses sidecar proxies to capture traffic and, automatically program the networking layer to route traffic through those proxies without any changes to the deployed application code.
+
+- In Kubernetes, the proxies are injected into pods and traffic is captured by programming iptables rules. 
+
+- Once the sidecar proxies are injected and traffic routing is programmed, Istio can mediate all traffic. 
+
+* Service mesh
+
+- Service mesh is network of services that make the application and interaction between them.
+
+- Service mesh needs to
+
+    - Service Discovery
+
+    - Load Balancing
+
+    - Failure recovery
+
+    - metrics
+
+    - monitoring
+
+* Service mesh..
+
+- Other requirements
+
+    - A/B testing
+
+    - canary rollouts
+
+    - rate limiting
+
+    - access control
+
+    - authentication, authorization, and encryption
+
+* Istio
+
+- Automatic load balancing for HTTP, gRPC, WebSocket, and TCP traffic.
+
+- Fine-grained control of traffic behavior with rich routing rules, retries, failovers, and fault injection.
+
+- A pluggable policy layer and configuration API supporting access controls, rate limits and quotas.
+
+- Automatic metrics, logs, and traces for all traffic within a cluster, including cluster ingress and egress
+
+- Secure service-to-service communication in a cluster with strong identity-based authentication and authorization and encryption.
+
+
+* Core features
+
+* Traffic management
+
+- control the flow of traffic and API calls between services. 
+
+- simplifies configuration of service-level properties like circuit breakers, timeouts, and retries
+
+- Makes API calls more reliable, and network more robust.
+
+* Security
+
+- Isio manages authentication, authorization, and encryption of service communication at scale
+
+- enforce policies consistently across diverse protocols and runtimes – all with little or no application changes.
+
+* Observability
+
+- Istio’s robust tracing, monitoring, and logging features give you deep insights into your service mesh deployment. 
+
+- Istio's custom dashboards provide visibility into the performance of all your services and let you see how that performance is affecting your other processes.
+
+* Platform support
+
+- Kubernetes
+
+- Nomad with Consul
+
+- running on individual virtual machines
+
+* Architecture
+
+* Architecture
+
+.image img/arch.png 
+
+* Arch.. 
+
+- Logically split into data plane and a control plane.
+
+* Data plane
+
+- composed of a set of intelligent proxies (Envoy) deployed as sidecars.
+
+- These proxies mediate and control all network communication between microservices.
+
+* Control plane
+
+- The control plane manages and configures the proxies to route traffic. 
+
+- The control plane configures Mixers to enforce policies and collect telemetry.
+
+* Envoy
+
+- mediate all inbound and outbound traffic for all services in the service mesh. 
+
+- Envoy is deployed as a sidecar to the relevant service in the same Kubernetes pod. 
+
+* Envoy features
+
+    - Dynamic service discovery
+    - Load balancing
+    - TLS termination
+    - HTTP/2 and gRPC proxies
+    - Circuit breakers
+    - Health checks
+    - Staged rollouts with %-based traffic split
+    - Fault injection
+    - Rich metrics
+
+* Mixer
+
+- Mixer enforces access control and usage policies across the service mesh, and collects telemetry data from the Envoy proxy and other services. 
+
+- The proxy extracts request level attributes, and sends them to Mixer for evaluation. 
+
+* Pilot
+
+- Pilot provides service discovery for the Envoy sidecars, traffic management capabilities for intelligent routing (e.g., A/B tests, canary rollouts, etc.), and resiliency (timeouts, retries, circuit breakers, etc.).
+
+* Citadel
+
+- Citadel enables strong service-to-service and end-user authentication with built-in identity and credential management. 
+
+- enforce policies based on service identity rather than on relatively unstable layer 3 or layer 4 network identifiers. 
+
+- Can enable encryption of traffic in service mesh.
+
+* Galley
+
+- Galley is Istio’s configuration validation, ingestion, processing and distribution component. 
+
+- It is responsible for insulating the rest of the Istio components from the details of obtaining user configuration from the underlying platform (e.g. Kubernetes).
+
+* Traffic Management
+
+* Traffic Management
+
+- Istio’s traffic management model relies on the following two components:
+
+    - Pilot , the core traffic management component.
+
+    - Envoy proxies, which enforce configurations and policies set through Pilot.
+
+- These components enable
+
+    - Service discovery
+
+    - Load balancing
+
+    - Traffic routing and control
+
+* Pilot 
+
+.image img/pilot.png
+
+* Pilot 
+
+- Pilot maintains an abstract model of all the services in the mesh. Platform-specific adapters in Pilot translate the abstract model appropriately for your platform. 
+
+- For example, the Kubernetes adapter implements controllers to watch the Kubernetes API server for changes to pod registration information and service resources. 
+
+- The Kubernetes adapter translates this data for the abstract model.
+
+- Pilot uses the abstract model to generate appropriate Envoy-specific configurations to let Envoy proxies know about one another in the mesh through the Envoy API.
+
+* Envoy proxies
+
+- Envoy proxies are the only Istio components that interact with data plane traffic. 
+
+- Envoy proxies route the data plane traffic across the mesh and enforce the configurations and traffic rules without the services having to be aware of them. 
+
+- Augments service with traffic management features
+
+    service discovery and load balancing
+    traffic routing and configuration
+    network resilience and testing 
+
+* service discovery and load balancing
+
+- Istio service discovery leverages the service discovery features provided by platforms.
+
+- When platform starts a new instance of a service it notifies platform adapter.
+
+- The platform adapter registers the instance with the Pilot abstract model.
+
+- Pilot distributes traffic rules and configurations to the Envoy proxies to account for the change.
+
+- Using the abstract model, Pilot configures the Envoy proxies to perform load balancing for service requests.
+
+* Supported load balancing methods
+
+    - Round robin
+
+    - Random
+
+    - Weighted
+
+    - Least requests
+
+* Traffic routing and configuration
+
+- Virtual services - Used to configure ordered list of routing rules.
+
+- Destination rules - configure the policies you want Istio to apply to a request after enforcing the routing rules.
+
+- Gateways - configure how the Envoy proxies load balance HTTP, TCP, or gRPC traffic.
+
+- Service entries - configure external dependencies of the mesh.
+
+- Sidecars - configure the scope of the Envoy proxies to enable certain features, like namespace isolation.
+
+* Traffic routing use cases
+
+* Traffic routing use cases
+
+-  Istio handles basic traffic routing by default, but configurations for advanced use cases might require the full range of Istio traffic routing features.
+
+* Routing traffic to multiple versions of a service
+
+- Service subsets are used to label all instances that correspond to a specific version of a service.
+
+- routing rules for traffic can be configured to reach specific subsets.
+
+- Envoy proxies use round-robin to route traffic across the instances of each subset.
+
+* A/B testing
+
+- virtual service to specify a routing rule that sends 25% of requests to instances in the v2 subset, and sends the remaining 75% of requests to instances in the v1 subset.
+
+* A/B testing..
+
+.code -edit src/01-abTesting.yaml  /START OMIT/,/END OMIT/
+
+* Canary rollouts with autoscaling
+
+- Canary rollouts allow you to test a new version of a service by sending a small amount of traffic to the new version. 
+
+- If the test is successful, you can gradually increase the percentage of traffic sent to the new version until all the traffic is moved. 
+
+- If anything goes wrong along the way, you can abort the rollout and return the traffic to the old version.
+
+* Virtual services
+
+- A virtual service is a resource you can use to configure how Envoy proxies route requests to a service within an Istio service mesh. 
+
+* Example virtual service configurations:
+
+- Virtual service A configures routing rules for traffic to reach service X.
+
+- Virtual service B configures routing rules for traffic to reach services Y and Z.
+
+- Virtual service C configures routing rules for traffic to reach different versions of service W.
+
+* Virtual services...
+
+- Virtual services let you finely configure traffic behavior. For example, you can use virtual services to direct HTTP traffic to use a different version of the service for a specific user.
+
+- You can add gateways to route traffic in or out of your mesh, or combine virtual services with destination rules to configure the behavior of the traffic. 
+
+- You can use a service entry to add external dependencies to the mesh and combine them with virtual services to configure the traffic to these dependencies. 
+
+* Route requests to a subset
+
+.code -edit src/02-subset.yaml  /START OMIT/,/END OMIT/
+
+* Route requests to a subset...
+
+- virtual service handles routing for any DNS name ending with .my-co.org.
+
+- You can specify user-addressable hosts by using any DNS name or an internal mesh service name as long as the name resolves, implicitly or explicitly, to one or more fully qualified domain names (FQDN). 
+
+- To specify multiple hosts, you can use wildcards.
+
+- under route and destination, which specifies the routing rule’s destination, host: my-svc specifies the destination’s host. If you are running on Kubernetes, then my-svc is the name of a Kubernetes service.
+
+- The destination’s host must exist in the service registry. To use external services as destinations, use service entries to add those services to the registry.
+
+* Route requests to services in a Kubernetes namespace
+
+- If you use short names, the destinations must be in the same namespace as the virtual service. If you use fully qualified domain names, the destinations can be in any namespace.
+
+- For example, if the virtual service is defined in the my-namespace namespace, Istio adds the my-namespace.svc.cluster.local suffix to the abbreviated destination resulting in the actual destination: svc-1.my-namespace.svc.cluster.local.
+
+* Routing rules
+
+- A routing rule consists of a destination and zero or more conditions.
+
+* Routing rule for HTTP traffic
+
+.code -edit src/03-httprouting.yaml  /START OMIT/,/END OMIT/
+
+* Routing rule for HTTP traffic...
+
+- Routing rule begins with the route field with a leading -. 
+
+- The first rule includes a match condition with a regular expression to check if the username “jason” is in the request’s cookie. 
+
+- If the request matches this condition, the rule sends traffic to the v2 subset of the my-svc service. 
+
+- Otherwise, the second rule sends traffic to the v1 subset of the my-svc service.
+ 
+* Match a condition
+
+- you can restrict traffic to specific client workloads by using labels.
+
+.code -edit src/04-matchlabel.yaml  /START OMIT/,/END OMIT/
+
+- only applies to requests coming from instances of the reviews service
+
+* Conditions based on HTTP headers
+
+.code -edit src/05-cond.yaml  /START OMIT/,/END OMIT/
+
+- rule that only applies to an incoming request that includes a custom end-user header containing the exact jason string.
+
+* Match request URI
+
+.code -edit src/06-uri.yaml  /START OMIT/,/END OMIT/
+
+- rule only applies to a request if the URI path starts with /api/v1
+
+* Multiple match conditions
+
+- you use the nesting of the conditions in the routing rule to specify whether AND or OR semantics apply. 
+
+- To specify AND semantics, you nest multiple conditions in a single section of match.
+
+.code -edit src/07-and.yaml  /START OMIT/,/END OMIT/
+
+* Multiple match conditions...
+
+- To specify OR conditions, you place multiple conditions in separate sections of match. 
+
+.code -edit src/08-or.yaml  /START OMIT/,/END OMIT/
+
+* Routing rule precedence
+
+- Multiple rules for a given destination in a configuration file are evaluated in the order they appear. The first rule on the list has the highest priority.
+
+A best practice pattern to specify routing rules is as follows:
+
+- Provide one or more higher priority rules that match various conditions.
+
+- Provide a single weight-based rule with no match condition last. 
+
+- This rule provides the weighted distribution of traffic for all other cases.
+
+* Precedence example with 2 rules
+
+.code -edit src/09-precedence.yaml  /START OMIT/,/END OMIT/
+
+* Destination rules
+
+- Destination rules are applied after the routing rules are evaluated. 
+
+- Destination rules are matched against the destination in the routing rules, not the host of the virtual service itself. 
+
+* Load balancing 3 subsets
+
+.code -edit src/10-loadbalance.yaml  /START1 OMIT/,/END1 OMIT/
+
+- the default policy, sets a simple random load balancer
+
+* Load balancing 3 subsets...
+
+.code -edit src/10-loadbalance.yaml  /START2 OMIT/,/END2 OMIT/
+
+-  A v2 specific policy, a round robin load balancer.
+
+* Service subsets
+
+- Service subsets subdivide and label the instances of a service. 
+
+- service subsets in Istio allows you to configure the communication to services with multiple versions within your mesh and configure the following common use cases:
+
+    Splitting traffic between versions for A/B testing
+
+    Canary rollout
+
+* Gateways
+
+* Gateways
+
+- You use a gateway to manage inbound and outbound traffic for your mesh. 
+
+- You can manage multiple types of traffic with a gateway.
+
+- You might use multiple gateways to have one gateway for private traffic and another for public traffic.
+
+* Gateway configuration 
+
+- Firewall functions
+
+- Caching
+
+- Authentication
+
+- Network address translation
+
+- IP address management
+
+* Request flow 
+
+.image img/requestflow.png
+
+* Ingress gateway
+
+- All traffic enters the mesh through an ingress gateway workload. To configure the traffic, use an Istio gateway and a virtual service. You bind the virtual service to the gateway to use standard Istio routing rules to control HTTP requests and TCP traffic entering the mesh.
+
+* egress gateway 
+
+- You can use egress gateways to limit which services can or should access external networks, or to enable secure control of egress traffic to add security to your mesh.
+
+* Configure a gateway for external HTTPS traffic
+
+.code -edit src/11-gateway.yaml  /START OMIT/,/END OMIT/
+
+* Configure a gateway for external HTTPS traffic...
+
+- This gateway configuration lets HTTPS traffic from ext-host into the mesh on port 443, but doesn’t specify any routing for the traffic.
+
+* Bind a gateway to a virtual service
+
+.code -edit src/12-gateway-vs.yaml  /START OMIT/,/END OMIT/
+
+* Service entries
+
+- A service entry is used to add an entry to Istio’s abstract model, or service registry, that Istio maintains internally.
+
+- Configuring service entries allows you to manage traffic for services running outside of the mesh.
+
+- You don’t need to add a service entry for every external service that you want your mesh services to use. By default, Istio configures the Envoy proxies to passthrough requests to unknown services, although you can’t use Istio features to control the traffic to destinations that are not registered in the mesh.
+
+* Service entries...
+
+- Access secure external services over plain text ports, to configure Envoy to perform TLS Origination .
+
+- Ensure, together with an egress gateway, that all external services are accessed through a single exit point.
+
+* Service entries...
+
+.code -edit src/13-service-entry.yaml  /START OMIT/,/END OMIT/
+
+* Service entries...
+
+- You must specify the external resource using the hosts key.
+
+- The value represents the set of one or more services outside the mesh that services in the mesh can access.
+
+- Configuring a service entry can be enough to call an external service, but typically you configure either, or both, a virtual service or destination rule to control traffic in a more granular way.
+
+* Secure the connection with mutual TLS
+
+.code -edit src/14-ext-mtls.yaml  /START OMIT/,/END OMIT/
+
+* Secure the connection with mutual TLS
+
+- Together, the svc-entry service entry and the ext-res-dr destination rule configure a connection for traffic to the ext-resource external dependency using port 443 and mutual TLS.
+
+* Sidecars
+
+* Sidecars
+
+- By default, Istio configures every Envoy proxy to accept traffic on all the ports of its associated workload, and to reach every workload in the mesh when forwarding traffic. You can use a sidecar configuration to do the following:
+
+- Fine-tune the set of ports and protocols that an Envoy proxy accepts.
+
+- Limit the set of services that the Envoy proxy can reach.
+
+- A Sidecar resource can be used to configure one or more sidecar proxies selected using workload labels, or to configure all sidecars in a particular namespace.
+
+* Enable namespace isolation
+
+- the following Sidecar configures all services in the bookinfo namespace to only reach services running in the same namespace thanks to the ./* value of the hosts: field:
+
+* Enable namespace isolation
+
+.code -edit src/15-sidecar.yaml  /START OMIT/,/END OMIT/
+
+* Network resilience and testing
+
+* Network resilience and testing
+
+- Istio provides opt-in failure recovery features that you can configure dynamically at runtime through the Istio traffic management rules.
+
+* Timeouts and retries
+
+- A timeout is the amount of time that Istio waits for a response to a request.
+
+- A retry is an attempt to complete an operation multiple times if it fails. 
+
+- You can set defaults and specify request-level overrides for both timeouts and retries or for one or the other.
+
+* Circuit breakers
+
+- Circuit breakers prevent your application from stalling as it waits for an upstream service to respond. 
+
+- You can configure a circuit breaker based on a number of conditions, such as connection and request limits.
+
+* Fault injection
+
+- Fault injection is a testing method that introduces errors into a system to ensure that it can withstand and recover from error conditions.
+
+* Timeouts and retries
+
+* Timeouts and retries
+
+- set defaults for timeouts and retries per service and subset that apply to all callers.
+
+- The default timeout for HTTP requests is 15 seconds.
+
+- You can configure a virtual service with a routing rule to override the default
+
+* Timeouts..
+
+.code -edit src/16-timeout.yaml  /START OMIT/,/END OMIT/
+
+* Set number and timeouts for retries
+
+- You can specify the maximum number of retries for an HTTP request in a virtual service.
+
+- You can provide specific timeouts for the retries to ensure that the calling service gets a response, either success or failure, within a predictable time frame.
+
+- Envoy proxies automatically add variable jitter between your retries to minimize the potential impact of retries on an overloaded upstream service.
+
+* Retries
+
+.code -edit src/17-retry.yaml  /START OMIT/,/END OMIT/
+
+* Circuit breakers
+
+* Circuit breakers
+
+- Circuit breaker pattern prevents your application from stalling as it waits for an upstream service to respond. 
+
+- By configuring a circuit breaker pattern, you allow your application to fail fast and handle the error appropriately
+
+* Limit connections to 100
+
+.code -edit src/18-circuit-breaker.yaml  /START OMIT/,/END OMIT/
+
+
+
+
+
+
+
+

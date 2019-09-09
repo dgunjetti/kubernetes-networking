@@ -47,9 +47,9 @@ deepak@andcloud.io
 
 - container runtime (docker) will assign IP address to container within the host subnet.
 
-- To perform the encapsulation, flannel utilizes Universal TAP/TUN devices (in TUN mode) and proxies the IP fragments between the TUN device and a UDP socket.
-
 * flannel..
+
+- To perform the encapsulation, flannel utilizes Universal TAP/TUN devices (in TUN mode) and proxies the IP fragments between the TUN device and a UDP socket.
 
 - Packets are forwarded using one of several backend mechanisms including VXLAN and various cloud integrations.
 
@@ -146,5 +146,11 @@ HOST-GW :
 https://www.youtube.com/watch?v=3eAVHt3lyuM
 
 https://blog.laputa.io/kubernetes-flannel-networking-6a1cb1f8ec7c
+
+* Building flannel
+
+    make release
+
+    make docker-push-all
 
 

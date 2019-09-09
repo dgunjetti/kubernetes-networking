@@ -1,0 +1,14 @@
+# START OMIT
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: my-vtl-svc
+spec:
+  hosts:
+  - "*.my-co.org"
+  http:
+  - route:
+    - destination:
+        host: my-svc
+        subset: v1
+# END OMIT

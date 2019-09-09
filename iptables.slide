@@ -363,9 +363,12 @@ ruleset are saved in /etc/sysconfig/iptables file
 
 * Per-IP packet limits: the recent module
 
-    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSHLIMIT --rsource
+    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack 
+    --ctstate NEW -m recent --set --name SSHLIMIT --rsource
     
-    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack --ctstate NEW -m recent --set --name SSHLIMIT --update --seconds 180 --hitcount 5 --name SSH --rsource -j DROP
+    iptables -A INPUT -p tcp -m tcp --dport 22 -m conntrack 
+    --ctstate NEW -m recent --set --name SSHLIMIT --update 
+    --seconds 180 --hitcount 5 --name SSH --rsource -j DROP
 
 - We’ve set a name for the limit module by which it can keep track of things — in our case, it’s “SSHLIMIT”. The first line adds the source IP to the list that the recent module maintains. If the IP is already on this list, then the entry for this IP is updated. In the next line, we check whether the counter has hit the value of 5 in 180 seconds. If that’s indeed the case, we drop the packet. Thus, this allows 4 new SSH connections from an IP in 3 minutes.
 

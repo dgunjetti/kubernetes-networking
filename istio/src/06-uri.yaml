@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: productpage
+spec:
+# START OMIT  
+  hosts:
+  - productpage
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1
+    route:
+    ...
+# END OMIT

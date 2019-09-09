@@ -1,0 +1,167 @@
+
+
+* Envoy
+
+- Envoy is a L7 proxy and communication bus designed for modern microservices architecture.
+
+- Design belief
+
+    The network should be transparent to applications. When network and application problems do occur it should be easy to determine the source of the problem.
+
+* Out of process architecture
+
+- Envoy is a self contained process designed to run alongside every application server.
+
+
+* Advantages over library approach to service to service communication
+
+- A single envoy deployment can form a mesh between Java, C++, Go, PHP, Python applications.
+
+- Deploying library upgrade can be incredibly difficult. Envoy can be deployed and upgraded quickly across entire infrastructure transparently.
+
+
+* Written in Modern C++11
+
+- Provides excellent latency properties.
+
+- Provices both excellent developer productivity and performance.
+
+* L3/L4 filter architecture
+
+- Envoy at its core is a L3/L4 network proxy. 
+
+- Provides pluggable filter chain mechanism to perform different TCP proxy tasks such as raw TCP proxy, HTTP proxy, TLS client certificate authentication, etc.
+
+* HTTP L7 filter architecture
+
+- It can perform tasks such as buffering, rate limiting, routing/forwarding, sniffing Amazon’s DynamoDB, etc.
+
+* First class HTTP/2 support
+
+- Envoy supports both HTTP/1.1 and HTTP/2. 
+
+- Envoy can operate as a transparent HTTP/1.1 to HTTP/2 proxy in both directions. 
+
+* HTTP L7 routing
+
+- Envoy supports a routing subsystem that is capable of routing and redirecting requests based on path, authority, content type, runtime values, etc. 
+
+* gRPC support
+
+-  gRPC is an RPC framework from Google that uses HTTP/2 as the underlying multiplexed transport.
+
+* MongoDB / DynamoDB L7 support
+
+-  Envoy supports L7 sniffing, statistics production, and logging for MongoDB connections.
+
+* Service discovery and dynamic configuration
+
+- Envoy optionally consumes a layered set of dynamic configuration APIs for centralized management. The layers provide an Envoy with dynamic updates about: hosts within a backend cluster, the backend clusters themselves, HTTP routing, listening sockets, and cryptographic material.
+
+- For a simpler deployment, backend host discovery can be done through DNS resolution 
+
+* Health checking
+
+- Envoy then uses the union of service discovery and health checking information to determine healthy load balancing targets. 
+
+* Advanced load balancing
+
+- Envoy implement advanced load balancing techniques in a single place and have them be accessible to any application. 
+
+- Currently Envoy includes support for automatic retries, circuit breaking, global rate limiting via an external rate limiting service, request shadowing, and outlier detection.
+
+* Front/edge proxy support
+
+- Although Envoy is primarily designed as a service to service communication system, there is benefit in using the same software at the edge (observability, management, identical service discovery and load balancing algorithms, etc.). 
+
+- Envoy includes TLS termination, HTTP/1.1 and HTTP/2 support, as well as HTTP L7 routing.
+
+* Best in class observability
+
+- Envoy includes robust statistics support for all subsystems. statsd (and compatible providers) is the currently supported statistics sink, though plugging in a different one would not be difficult. 
+
+- Statistics are also viewable via the administration port. Envoy also supports distributed tracing via thirdparty providers.
+
+* Architecture overview
+
+* Architecture overview
+
+- Envoy uses a single process with multiple threads architecture. 
+
+- A single master thread controls various sporadic coordination tasks while some number of worker threads perform listening, filtering, and forwarding. 
+
+- Once a connection is accepted by a listener, the connection spends the rest of its lifetime bound to a single worker thread. 
+
+- This allows the majority of Envoy to be largely single threaded (embarrassingly parallel) with a small amount of more complex code handling coordination between the worker threads. 
+
+- Generally Envoy is written to be 100% non-blocking.
+
+* Listeners
+
+- The Envoy configuration supports any number of listeners within a single process.
+
+- Currently Envoy only supports TCP listeners.
+
+- Each listener is independently configured with some number of network level (L3/L4) filters.
+
+- When a new connection is received on a listener, the configured connection local filter stack is instantiated and begins processing subsequent events.
+
+* Listener filters
+
+- Listener filters may be used to manipulate connection metadata. 
+
+- The main purpose of listener filters is to make adding further system integration functions easier by not requiring changes to Envoy core functionality, and also make interaction between multiple such features more explicit.
+
+- Filters in the chain can stop and subsequently continue iteration to further filters. This allows for more complex scenarios such as calling a rate limiting service, etc. 
+
+* Network (L3/L4) filters
+
+-  There are three different types of network filters:
+
+- Read: Read filters are invoked when Envoy receives data from a downstream connection.
+
+- Write: Write filters are invoked when Envoy is about to send data to a downstream connection.
+
+- Read/Write: Read/Write filters are invoked both when Envoy receives data from a downstream connection and when it is about to send data to a downstream connection.
+
+- filters operate on raw bytes and a small number of connection events (e.g., TLS handshake complete, connection disconnected locally or remotely, etc.). 
+
+* TCP proxy
+
+-  Envoy is fundamentally written as a L3/L4 server, basic L3/L4 proxy is easily implemented. The TCP proxy filter performs basic 1:1 network connection proxy between downstream clients and upstream clusters.
+
+- The TCP proxy filter will respect the connection limits imposed by each upstream cluster’s global resource manager. The TCP proxy filter checks with the upstream cluster’s resource manager if it can create a connection without going over that cluster’s maximum number of connections, if it can’t the TCP proxy will not make the connection.
+
+* HTTP
+
+* HTTP connection management
+
+- Envoy has a built in network level filter called the HTTP connection manager. 
+
+- This filter translates raw bytes into HTTP level messages and events (e.g., headers received, body data received, trailers received, etc.). 
+
+- It also handles functionality common to all HTTP connections and requests such as access logging, request ID generation and tracing, request/response header manipulation, route table management, and statistics.
+
+* HTTP protocols
+
+- Envoy’s HTTP connection manager has native support for HTTP/1.1, WebSockets, and HTTP/2.
+
+- Envoy’s HTTP support was designed to first and foremost be an HTTP/2 multiplexing proxy. 
+
+- Internally, HTTP/2 terminology is used to describe system components. 
+
+- For example, an HTTP request and response take place on a stream. A codec API is used to translate from different wire protocols into a protocol agnostic form for streams, requests, responses, etc. In the case of HTTP/1.1, the codec translates the serial/pipelining capabilities of the protocol into something that looks like HTTP/2 to higher layers. This means that the majority of the code does not need to understand whether a stream originated on an HTTP/1.1 or HTTP/2 connection.
+
+* Route table configuration
+
+- Each HTTP connection manager filter has an associated route table. The route table can be specified in one of two ways:
+
+- Statically.
+
+- Dynamically via the RDS API.
+
+* Retry plugin configuration
+
+- Normally during retries, host selection follows the same process as the original request. Retry plugins can be used to modify this behavior, and they fall into two categories:
+
+- 

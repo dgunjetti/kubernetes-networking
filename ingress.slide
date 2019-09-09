@@ -101,6 +101,7 @@ deepak@andcloud.io
                 | 178.91.123.132  |
   bar.foo.com --|                 |-> bar.foo.com s2:80
 
+* Name based virtual hosting..
 
   rules:
   - host: foo.bar.com
