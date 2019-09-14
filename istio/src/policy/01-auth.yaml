@@ -1,0 +1,10 @@
+apiVersion: "authentication.istio.io/v1alpha1"
+kind: "Policy"
+metadata:
+  name: "reviews"
+spec:
+  targets:
+  - name: reviews
+  peers:
+  - mtls: {}
+
